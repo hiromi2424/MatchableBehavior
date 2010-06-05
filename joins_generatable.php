@@ -3,6 +3,10 @@ class JoinsGeneratableBehavior extends ModelBehavior {
 	var $findJoin = true;
 	var $optionName = 'jointo';
 	var $associations = array('hasAndBelongsToMany', 'hasOne', 'hasMany', 'belongsTo');
+	var $defaultOptions = array(
+		'type' => 'LEFT',
+		'unbind' => true,
+	);
 	
 	function setup(&$Model, $config = array()){
 		$this->_set($config);
@@ -21,44 +25,64 @@ class JoinsGeneratableBehavior extends ModelBehavior {
 			return $query;
 		}
 		
-		$tojoin = Set::normalize($query[$this->optionName]);
-		
 		$joins = isset($query['joins']) ? $query['joins'] : array();
+		$joins = Set::merge($joins, $this->generateJoins($Model, $query[$this->optionName]));
+		$query['joins'] = $joins;
+		var_dump($query);
+		return $query;
+	}
+	
+	function generateJoins(&$Model, $tojoin) {
+		$tojoin = Set::normalize($tojoin);
+		$joins = array();
+		$unbinds = array();
 		
 		foreach ($tojoin as $alias => $options) {
-			// Model::__associations is private property
 			foreach ($this->associations as $association) {
 				if (isset($Model->{$association}[$alias])) {
-					$join = $this->generateJoins($Model, $alias, $Model->{$association}[$alias], $association, $options);
+					$options = Set::merge($this->defaultOptions, $options);
+					
+					$additionals = $options;
+					unset($additionals['type']);
+					unset($additionals['unbind']);
+					
+					if (!empty($additionals)) {
+						$joins = array_merge($joins, $this->generateJoins($Model->$alias, $additionals));
+					}
+					$join = $this->__joinsOptions($Model, $alias, $Model->{$association}[$alias], $association, $options);
 					if (!empty($join)) {
-						$joins = Set::merge($joins, $join);
-						$Model->unbindModel(array($association => array($alias)));
+						$joins = array_merge($joins, $join);
+						if ($options['unbind']) {
+							$unbinds[$association][] = $alias;
+							// $Model->unbindModel(array($association => array($alias)));
+						}
 					}
 				}
 			}
 		}
-		$query['joins'] = $joins;
-		return $query;
+		if (!empty($unbinds)) {
+			$Model->unbindModel($unbinds);
+		}
+		return array_reverse($joins);
 	}
 	
-	function generateJoins(&$Model, $alias, $assoc, $type, $options = array()) {
-		$options = Set::merge(array('type' => 'LEFT'), $options);
+	function __joinsOptions(&$Model, $alias, $assoc, $type, $options = array()) {
 		$joins = array();
 		$foreignKey = $assoc['foreignKey'];
 		switch ($type) {
 			case 'hasOne':
 			case 'hasMany':
-				$conditions = array("{$alias}.{$foreignKey}" => "{$Model->alias}.{$Model->primaryKey}");
+				$conditions = array("{$alias}.{$foreignKey} = {$Model->alias}.{$Model->primaryKey}");
 				break;
 			case 'belongsTo':
-				$conditions = array("{$alias}.{$Model->$alias->primaryKey}" => "{$Model->alias}.{$foreignKey}");
+				$conditions = array("{$alias}.{$Model->$alias->primaryKey} = {$Model->alias}.{$foreignKey}");
 				break;
 			case 'hasAndBelongsToMany':
-				$joins = $this->createJoins($Model, $assoc['with'], $assoc, 'habtmSecond', $options);
-				$conditions = array("{$alias}.{$Model->$alias->primaryKey}" => "{$assoc['with']}.{$assoc['associationForeignKey']}");
+				$joins = $this->__joinsOptions($Model, $assoc['with'], $assoc, 'habtmSecond', $options);
+				$conditions = array("{$alias}.{$Model->$alias->primaryKey} = {$assoc['with']}.{$assoc['associationForeignKey']}");
 				break;
 			case 'habtmSecond':
-				$conditions = array("{$alias}.{$foreignKey}" => "{$Model->alias}.{$Model->primaryKey}");
+				$conditions = array("{$alias}.{$foreignKey} = {$Model->alias}.{$Model->primaryKey}");
 				break;
 		}
 		$join = array(
@@ -67,7 +91,7 @@ class JoinsGeneratableBehavior extends ModelBehavior {
 			'type' => $options['type'],
 			'conditions' => $conditions,
 		);
-		$joins[] = $join;
+		array_unshift($joins, $join);
 		return $joins;
 	}
 }
