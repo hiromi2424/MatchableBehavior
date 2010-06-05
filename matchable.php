@@ -1,6 +1,6 @@
 <?php
-class JoinsGeneratableBehavior extends ModelBehavior {
-	var $findJoin = true;
+class MatchableBehavior extends ModelBehavior {
+	var $findMethod = 'matches';
 	var $optionName = 'jointo';
 	var $associations = array('hasAndBelongsToMany', 'hasOne', 'hasMany', 'belongsTo');
 	var $defaultOptions = array(
@@ -8,15 +8,15 @@ class JoinsGeneratableBehavior extends ModelBehavior {
 		'unbind' => true,
 	);
 	
-	function setup(&$Model, $config = array()){
+	function setup(&$Model, $config = array()) {
 		$this->_set($config);
-		if($this->findJoin){
-			$Model->_findMethods['join'] = true;
-			$this->mapMethods = array('/_findJoin/' => '_findJoin');
+		if ($this->findMethod) {
+			$Model->_findMethods[$this->findMethod] = true;
+			$this->mapMethods = array("/_find{$this->findMethod}/" => '_findMathces');
 		}
 	}
 	
-	function _findJoin(&$Model, $dummy, $state, $query, $results = array()) {
+	function _findMatches(&$Model, $dummy, $state, $query, $results = array()) {
 		if ($state == 'after') {
 			return $results;
 		}
@@ -26,13 +26,12 @@ class JoinsGeneratableBehavior extends ModelBehavior {
 		}
 		
 		$joins = isset($query['joins']) ? $query['joins'] : array();
-		$joins = Set::merge($joins, $this->generateJoins($Model, $query[$this->optionName]));
+		$joins = Set::merge($joins, $this->prepareJoins($Model, $query[$this->optionName]));
 		$query['joins'] = $joins;
-		var_dump($query);
 		return $query;
 	}
 	
-	function generateJoins(&$Model, $tojoin) {
+	function prepareJoins(&$Model, $tojoin) {
 		$tojoin = Set::normalize($tojoin);
 		$joins = array();
 		$unbinds = array();
@@ -47,7 +46,7 @@ class JoinsGeneratableBehavior extends ModelBehavior {
 					unset($additionals['unbind']);
 					
 					if (!empty($additionals)) {
-						$joins = array_merge($joins, $this->generateJoins($Model->$alias, $additionals));
+						$joins = array_merge($joins, $this->prepareJoins($Model->$alias, $additionals));
 					}
 					$join = $this->__joinsOptions($Model, $alias, $Model->{$association}[$alias], $association, $options);
 					if (!empty($join)) {
