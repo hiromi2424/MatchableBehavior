@@ -26,7 +26,7 @@ class MatchableBehavior extends ModelBehavior {
 		}
 		
 		$joins = isset($query['joins']) ? $query['joins'] : array();
-		$joins = Set::merge($joins, $this->prepareJoins($Model, $query[$this->optionName]));
+		$joins = array_merge($joins, $this->prepareJoins($Model, $query[$this->optionName]));
 		$query['joins'] = $joins;
 		return $query;
 	}
