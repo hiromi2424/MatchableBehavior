@@ -2,7 +2,6 @@
 ##Introduction
 Convenient shortcut for generating joins options from Model associations.
 
-* find('matches') is available. ( such a name "matches" can be changed by configure )
 * This behaves recursive.
 
 
@@ -10,11 +9,10 @@ Convenient shortcut for generating joins options from Model associations.
 In the Model
 	var $actsAs = array( ... , 'Matchable');
 In the Controller or other
-	$Model->find('matches', array('jointo' => 'Model2'));
+	$Model->find('all', array('jointo' => 'Model2'));
 such a option's name "jointo" can be changed by configure.
 
 ### Configure
-	var $findMethod = 'matches';
 	var $optionName = 'jointo';
 	var $associations = array('hasAndBelongsToMany', 'hasOne', 'hasMany', 'belongsTo');
 	var $defaultOptions = array(
@@ -25,7 +23,6 @@ These property can be configured with Behavior's option.
 for example
 	$actsAs = array(
 		'Matchable' => array(
-			'findMethods' => 'match',
 			'optionNAme' => 'models',
 		)
 	);
@@ -35,7 +32,7 @@ User has Many Posts.
 Posts hasMany Comment.
 Posts habtm Tag.
 
-	$this->User->find('matches', 'jointo' => array(
+	$this->User->find('all', 'jointo' => array(
 		'Post' => array(
 			'Tag',
 			'Comment',

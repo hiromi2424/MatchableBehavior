@@ -1,38 +1,40 @@
 <?php
 class MatchableBehavior extends ModelBehavior {
-	var $findMethod = 'matches';
 	var $optionName = 'jointo';
 	var $associations = array('hasAndBelongsToMany', 'hasOne', 'hasMany', 'belongsTo');
 	var $defaultOptions = array(
 		'type' => 'LEFT',
 		'unbind' => true,
 	);
+	var $__cacheJoins = array();
 	
 	function setup(&$Model, $config = array()) {
 		$this->_set($config);
-		if ($this->findMethod) {
-			$Model->_findMethods[$this->findMethod] = true;
-			$this->mapMethods = array("/_find{$this->findMethod}/" => '_findMathces');
-		}
 	}
 	
-	function _findMatches(&$Model, $dummy, $state, $query, $results = array()) {
-		if ($state == 'after') {
-			return $results;
-		}
-		
+	function beforeFind(&$Model, $query){
 		if (!isset($query[$this->optionName])) {
 			return $query;
 		}
+		$tojoin = $query[$this->optionName];
+		if(!empty($tojoin['clearCache'])){
+			$this->__cacheJoins = array();
+			unset($tojoin['clearCache']);
+		}
 		
 		$joins = isset($query['joins']) ? $query['joins'] : array();
-		$joins = array_merge($joins, $this->prepareJoins($Model, $query[$this->optionName]));
+		$joins = array_merge($joins, $this->prepareJoins($Model, $tojoin));
 		$query['joins'] = $joins;
 		return $query;
 	}
 	
 	function prepareJoins(&$Model, $tojoin) {
 		$tojoin = Set::normalize($tojoin);
+		$cacheKey = sha1(serialize($tojoin));
+		if(isset($this->__cacheJoins[$cacheKey])){
+			return $this->__cacheJoins[$cacheKey];
+		}
+		
 		$joins = array();
 		$unbinds = array();
 		
@@ -62,7 +64,7 @@ class MatchableBehavior extends ModelBehavior {
 		if (!empty($unbinds)) {
 			$Model->unbindModel($unbinds);
 		}
-		return array_reverse($joins);
+		return $this->__cacheJoins[$cacheKey] = array_reverse($joins);
 	}
 	
 	function __joinsOptions(&$Model, $alias, $assoc, $type, $options = array()) {
