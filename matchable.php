@@ -31,31 +31,33 @@ class MatchableBehavior extends ModelBehavior {
 	function prepareJoins(&$Model, $tojoin) {
 		$tojoin = Set::normalize($tojoin);
 		$cacheKey = sha1(serialize($tojoin));
-		if(isset($this->__cacheJoins[$cacheKey])){
-			return $this->__cacheJoins[$cacheKey];
-		}
-		
-		$joins = array();
-		$unbinds = array();
-		
-		foreach ($tojoin as $alias => $options) {
-			foreach ($this->associations as $association) {
-				if (isset($Model->{$association}[$alias])) {
-					$options = Set::merge($this->defaultOptions, $options);
-					
-					$additionals = $options;
-					unset($additionals['type']);
-					unset($additionals['unbind']);
-					
-					if (!empty($additionals)) {
-						$joins = array_merge($joins, $this->prepareJoins($Model->$alias, $additionals));
-					}
-					$join = $this->__joinsOptions($Model, $alias, $Model->{$association}[$alias], $association, $options);
-					if (!empty($join)) {
-						$joins = array_merge($joins, $join);
-						if ($options['unbind']) {
-							$unbinds[$association][] = $alias;
-							// $Model->unbindModel(array($association => array($alias)));
+		$isCached = false;
+		if (isset($this->__cacheJoins[$cacheKey])) {
+			list($joins, $unbinds) = $this->__cacheJoins[$cacheKey];
+			$isCached = true;
+		} else {
+			$joins = array();
+			$unbinds = array();
+			
+			foreach ($tojoin as $alias => $options) {
+				foreach ($this->associations as $association) {
+					if (isset($Model->{$association}[$alias])) {
+						$options = Set::merge($this->defaultOptions, $options);
+						
+						$additionals = $options;
+						unset($additionals['type']);
+						unset($additionals['unbind']);
+						
+						if (!empty($additionals)) {
+							$joins = array_merge($joins, $this->prepareJoins($Model->$alias, $additionals));
+						}
+						$join = $this->__joinsOptions($Model, $alias, $Model->{$association}[$alias], $association, $options);
+						if (!empty($join)) {
+							$joins = array_merge($joins, $join);
+							if ($options['unbind']) {
+								$unbinds[$association][] = $alias;
+								// $Model->unbindModel(array($association => array($alias)));
+							}
 						}
 					}
 				}
@@ -64,7 +66,11 @@ class MatchableBehavior extends ModelBehavior {
 		if (!empty($unbinds)) {
 			$Model->unbindModel($unbinds);
 		}
-		return $this->__cacheJoins[$cacheKey] = array_reverse($joins);
+		$joins = array_reverse($joins);
+		if ($isCached) {
+			$this->__cacheJoins[$cacheKey] = array($joins, $unbinds);
+		}
+		return  $joins;
 	}
 	
 	function __joinsOptions(&$Model, $alias, $assoc, $type, $options = array()) {
