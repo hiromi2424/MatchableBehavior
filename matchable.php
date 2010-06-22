@@ -62,15 +62,15 @@ class MatchableBehavior extends ModelBehavior {
 					}
 				}
 			}
+			$joins = array_reverse($joins);
 		}
 		if (!empty($unbinds)) {
 			$Model->unbindModel($unbinds);
 		}
-		$joins = array_reverse($joins);
-		if ($isCached) {
+		if (!$isCached) {
 			$this->__cacheJoins[$cacheKey] = array($joins, $unbinds);
 		}
-		return  $joins;
+		return $joins;
 	}
 	
 	function __joinsOptions(&$Model, $alias, $assoc, $type, $options = array()) {
