@@ -30,7 +30,7 @@ class MatchableBehavior extends ModelBehavior {
 	
 	function prepareJoins(&$Model, $tojoin) {
 		$tojoin = Set::normalize($tojoin);
-		$cacheKey = sha1(serialize($tojoin));
+		$cacheKey = sha1($Model->alias . serialize($tojoin));
 		$isCached = false;
 		if (isset($this->__cacheJoins[$cacheKey])) {
 			list($joins, $unbinds) = $this->__cacheJoins[$cacheKey];
