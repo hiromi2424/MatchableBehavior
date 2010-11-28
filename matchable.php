@@ -16,7 +16,7 @@ class MatchableBehavior extends ModelBehavior {
 		if (!isset($query[$this->optionName])) {
 			return $query;
 		}
-		$tojoin = $query[$this->optionName];
+		$tojoin = (array)$query[$this->optionName];
 		if(!empty($tojoin['clearCache'])){
 			$this->__cacheJoins = array();
 			unset($tojoin['clearCache']);
